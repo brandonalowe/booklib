@@ -567,7 +567,6 @@ const AddBookModal = {
               <div class="author">{{ (searchResult && searchResult.author) || 'Author' }}</div>
               <div class="genre">{{ (searchResult && searchResult.genre) || 'Genre' }}</div>
               <div class="modal-actions">
-                <button class="btn" @click="doSearch">Search again</button>
                 <button class="btn primary" @click="addFoundBook" v-if="!added">＋ Add</button>
                 <button class="btn success" v-if="added">✓ Added</button>
               </div>
