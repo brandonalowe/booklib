@@ -14,7 +14,7 @@ func writeJson(w http.ResponseWriter, status int, v any) {
 }
 
 func scanBook(scanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }) (*models.Book, error) {
 	var b models.Book
 	var readInt int
@@ -26,6 +26,17 @@ func scanBook(scanner interface {
 	b.Read = readInt == 1
 	if lentAt.Valid {
 		b.LentAt = &lentAt.Time
+	}
+	return &b, nil
+}
+
+func scanCache(scanner interface {
+	Scan(dest ...any) error
+}) (*models.IsbnCache, error) {
+	var b models.IsbnCache
+	err := scanner.Scan(&b.ISBN, &b.Title, &b.Author, &b.ISBN, &b.Genre, &b.CoverUrl, &b.CachedAt)
+	if err != nil {
+		return nil, err
 	}
 	return &b, nil
 }

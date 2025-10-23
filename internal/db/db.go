@@ -21,7 +21,7 @@ func Init(path string) {
 	DB.SetMaxOpenConns(1)
 	DB.SetMaxIdleConns(1)
 
-	schema := `
+	bookSchema := `
 	CREATE TABLE IF NOT EXISTS books (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		title TEXT NOT NULL,
@@ -32,7 +32,20 @@ func Init(path string) {
 		lent_to TEXT,
 		lent_at DATETIME
 	);`
-	if _, err := DB.Exec(schema); err != nil {
+	if _, err := DB.Exec(bookSchema); err != nil {
+		log.Fatalf("failed to create schema: %v", err)
+	}
+
+	cacheSchema := `
+	CREATE TABLE IF NOT EXISTS isbn_cache (
+		isbn TEXT PRIMARY KEY,
+		title TEXT,
+		author TEXT,
+		genre TEXT,
+		cover_url TEXT,
+		cached_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+	if _, err := DB.Exec(cacheSchema); err != nil {
 		log.Fatalf("failed to create schema: %v", err)
 	}
 }

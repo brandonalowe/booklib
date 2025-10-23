@@ -10,4 +10,6 @@ func RegisterRoutes(r chi.Router) {
 	r.Post("/books", createBook)
 	r.Put("/books/{id}", updateBook)
 	r.Delete("/books/{id}", deleteBook)
+
+	r.Get("/search/{isbn}", searchBook)
 }
