@@ -33,3 +33,7 @@ go.work.sum
 
 # Logs
 *.log
+
+# Databases
+*.db
+*.sqlite3
