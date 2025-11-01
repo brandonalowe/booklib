@@ -253,3 +253,57 @@ func (h *AdminHandler) UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Role updated successfully"})
 }
+
+func (h *AdminHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	settings := make(map[string]string)
+
+	rows, err := h.DB.Query("SELECT key, value FROM settings")
+	if err != nil {
+		http.Error(w, `{"error":"Failed to fetch settings"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			continue
+		}
+		settings[key] = value
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(settings)
+}
+
+func (h *AdminHandler) UpdateSetting(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"Invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Key == "" {
+		http.Error(w, `{"error":"Key is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.DB.Exec(`
+		INSERT INTO settings (key, value, updated_at) 
+		VALUES (?, ?, datetime('now'))
+		ON CONFLICT(key) DO UPDATE SET 
+			value = excluded.value,
+			updated_at = datetime('now')
+	`, req.Key, req.Value)
+
+	if err != nil {
+		http.Error(w, `{"error":"Failed to update setting"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Setting updated successfully"})
+}

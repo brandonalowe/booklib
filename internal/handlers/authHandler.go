@@ -15,6 +15,14 @@ type AuthHandler struct {
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	// Check if registration is enabled
+	var registrationEnabled string
+	err := h.DB.QueryRow("SELECT value FROM settings WHERE key = 'registration_enabled'").Scan(&registrationEnabled)
+	if err == nil && registrationEnabled != "true" {
+		http.Error(w, `{"error":"Registration is currently disabled"}`, http.StatusForbidden)
+		return
+	}
+
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"Invalid request"}`, http.StatusBadRequest)

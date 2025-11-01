@@ -66,6 +66,10 @@ func Init(path string) error {
 		return fmt.Errorf("failed to create reading history table: %v", err)
 	}
 
+	if err := createSettingsTable(); err != nil {
+		return fmt.Errorf("failed to create settings table: %v", err)
+	}
+
 	log.Println("Database initialized successfully")
 	return nil
 }
@@ -259,6 +263,30 @@ func createReadingHistoryTable() error {
 		if _, err := DB.Exec(index); err != nil {
 			return fmt.Errorf("failed to create index: %v", err)
 		}
+	}
+
+	return nil
+}
+
+func createSettingsTable() error {
+	settingsSchema := `
+	CREATE TABLE IF NOT EXISTS settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	if _, err := DB.Exec(settingsSchema); err != nil {
+		return err
+	}
+
+	// Insert default settings if they don't exist
+	_, err := DB.Exec(`
+		INSERT OR IGNORE INTO settings (key, value) 
+		VALUES ('registration_enabled', 'true')
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to insert default settings: %v", err)
 	}
 
 	return nil

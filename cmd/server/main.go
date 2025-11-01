@@ -183,6 +183,8 @@ func main() {
 		r.Get("/users/{id}", adminHandler.GetUser)
 		r.Delete("/users/{id}", adminHandler.DeleteUser)
 		r.Put("/users/{id}/role", adminHandler.UpdateUserRole)
+		r.Get("/settings", adminHandler.GetSettings)
+		r.Put("/settings", adminHandler.UpdateSetting)
 	})
 
 	port := os.Getenv("PORT")
