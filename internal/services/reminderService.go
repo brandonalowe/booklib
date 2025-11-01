@@ -39,6 +39,7 @@ func (r *ReminderService) CheckAndSendReminders() {
 
 func (r *ReminderService) sendUpcomingDueReminders() error {
 	// Find books due in 3 days that haven't had a reminder sent in the last 24 hours
+	// Only include users who have email reminders enabled
 	query := `
 		SELECT 
 			l.id,
@@ -53,10 +54,13 @@ func (r *ReminderService) sendUpcomingDueReminders() error {
 		FROM lending l
 		JOIN users u ON l.user_id = u.id
 		JOIN books b ON l.book_id = b.id
+		LEFT JOIN user_settings us ON u.id = us.user_id
 		WHERE l.returned_at IS NULL
 		AND l.due_date IS NOT NULL
 		AND DATE(l.due_date) = DATE('now', '+3 days')
 		AND (l.last_reminder_sent IS NULL OR l.last_reminder_sent < datetime('now', '-24 hours'))
+		AND (us.email_reminders_enabled IS NULL OR us.email_reminders_enabled = 1)
+		AND (us.email_upcoming_reminders IS NULL OR us.email_upcoming_reminders = 1)
 	`
 
 	rows, err := r.DB.Query(query)
@@ -113,6 +117,7 @@ func (r *ReminderService) sendUpcomingDueReminders() error {
 
 func (r *ReminderService) sendOverdueReminders() error {
 	// Find overdue books that haven't had a reminder in the last 24 hours
+	// Only include users who have email reminders enabled
 	query := `
 		SELECT 
 			l.id,
@@ -127,10 +132,13 @@ func (r *ReminderService) sendOverdueReminders() error {
 		FROM lending l
 		JOIN users u ON l.user_id = u.id
 		JOIN books b ON l.book_id = b.id
+		LEFT JOIN user_settings us ON u.id = us.user_id
 		WHERE l.returned_at IS NULL
 		AND l.due_date IS NOT NULL
 		AND DATE(l.due_date) < DATE('now')
 		AND (l.last_reminder_sent IS NULL OR l.last_reminder_sent < datetime('now', '-24 hours'))
+		AND (us.email_reminders_enabled IS NULL OR us.email_reminders_enabled = 1)
+		AND (us.email_overdue_reminders IS NULL OR us.email_overdue_reminders = 1)
 		ORDER BY l.user_id, l.due_date
 	`
 

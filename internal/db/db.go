@@ -70,6 +70,10 @@ func Init(path string) error {
 		return fmt.Errorf("failed to create settings table: %v", err)
 	}
 
+	if err := createUserSettingsTable(); err != nil {
+		return fmt.Errorf("failed to create user settings table: %v", err)
+	}
+
 	log.Println("Database initialized successfully")
 	return nil
 }
@@ -287,6 +291,27 @@ func createSettingsTable() error {
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to insert default settings: %v", err)
+	}
+
+	return nil
+}
+
+func createUserSettingsTable() error {
+	userSettingsSchema := `
+	CREATE TABLE IF NOT EXISTS user_settings (
+		user_id INTEGER PRIMARY KEY,
+		email_reminders_enabled BOOLEAN DEFAULT 1,
+		email_upcoming_reminders BOOLEAN DEFAULT 1,
+		email_overdue_reminders BOOLEAN DEFAULT 1,
+		default_lending_days INTEGER DEFAULT 14,
+		yearly_reading_goal INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`
+
+	if _, err := DB.Exec(userSettingsSchema); err != nil {
+		return err
 	}
 
 	return nil

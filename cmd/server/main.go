@@ -54,6 +54,7 @@ func main() {
 	lendingHandler := &handlers.LendingHandler{DB: db.GetDB()}
 	statsHandler := &handlers.StatsHandler{DB: db.GetDB()}
 	readingHistoryHandler := &handlers.ReadingHistoryHandler{DB: db.GetDB()}
+	userSettingsHandler := &handlers.UserSettingsHandler{DB: db.GetDB()}
 
 	// Initialize email and reminder services
 	emailService := services.NewEmailService()
@@ -171,6 +172,14 @@ func main() {
 		r.Put("/{id}/finish", readingHistoryHandler.FinishReading)
 		r.Get("/book/{bookId}", readingHistoryHandler.GetBookReadingHistory)
 		r.Get("/book/{bookId}/active", readingHistoryHandler.GetActiveReadingSession)
+	})
+
+	// Protected user settings routes
+	r.Route("/api/user-settings", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+
+		r.Get("/", userSettingsHandler.GetUserSettings)
+		r.Put("/", userSettingsHandler.UpdateUserSettings)
 	})
 
 	// Admin routes
