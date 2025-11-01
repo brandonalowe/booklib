@@ -1,8 +1,33 @@
-*
-!.dockerignore
-!go.mod
-!go.sum
-!cmd/
-!internal/
-!scripts/
-!*.go
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Environment
+.env
+.env.*
+
+# Build artifacts
+main
+server
+booklib
+*.exe
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
