@@ -41,7 +41,7 @@ func main() {
 	// Initialize database
 	dbPath := os.Getenv("DATABASE_PATH")
 	if dbPath == "" {
-		dbPath = "./database/books.db"
+		dbPath = "./database/booklib.db"
 	}
 	if err := db.Init(dbPath); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
