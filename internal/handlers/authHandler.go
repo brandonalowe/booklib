@@ -69,8 +69,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   86400, // 24hrs
 		HttpOnly: true,
-		Secure:   isProduction,          // true in production (HTTPS)
-		SameSite: http.SameSiteNoneMode, // Required for cross-origin
+		Secure:   isProduction,         // true in production (HTTPS)
+		SameSite: http.SameSiteLaxMode, // Lax mode works when backend is proxied through same domain
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -123,8 +123,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   86400,
 		HttpOnly: true,
-		Secure:   isProduction,          // true in production (HTTPS)
-		SameSite: http.SameSiteNoneMode, // Required for cross-origin
+		Secure:   isProduction,         // true in production (HTTPS)
+		SameSite: http.SameSiteLaxMode, // Lax mode for better mobile browser compatibility
 	})
 
 	w.Header().Set("Content-type", "application/json")
@@ -149,8 +149,8 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   isProduction,          // Must match the original cookie
-		SameSite: http.SameSiteNoneMode, // Must match the original cookie
+		Secure:   isProduction,         // Must match the original cookie
+		SameSite: http.SameSiteLaxMode, // Must match the original cookie
 	})
 
 	w.Header().Set("Content-Type", "application/json")
