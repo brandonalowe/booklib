@@ -1,161 +1,92 @@
-# 🚀 BookLib Deployment Guide
+# 🚀 Deploy to Railway
 
-## Quick Deploy to Railway.app (FREE - Recommended)
+## Prerequisites
+- GitHub account
+- Railway account (free $5/month credit)
 
-Railway provides $5 free credit per month (app uses ~$1.75/month = **$0 cost**).
+## Quick Deploy (10 minutes)
 
-### Step-by-Step Guide
-
-**See [RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md) for complete instructions.**
-
-### TL;DR
+### 1. Connect GitHub to Railway
 
 ```bash
+# Install Railway CLI (optional)
 npm install -g @railway/cli
 railway login
-cd booklib-backend
-railway init
-railway up
 ```
 
-Then in Railway dashboard:
-1. Add persistent volume: `/data` (1GB)
-2. Set environment variables (see below)
-3. Done! 🎉
+**Or use the dashboard:**
+1. Go to https://railway.app/new
+2. Click **Deploy from GitHub repo**
+3. Select `booklib-backend`
+4. Railway auto-detects Go and deploys!
 
----
+### 2. Configure Environment Variables
 
-## Environment Variables
-
-Required variables for production:
+In Railway dashboard → Your Project → Variables, add:
 
 ```bash
-DATABASE_PATH=/data/booklib.db
+# Required
+SESSION_SECRET=your-random-secret-here  # Generate: openssl rand -base64 32
 PORT=8080
-SESSION_SECRET=<generate-with-openssl-rand>
-CORS_ALLOWED_ORIGINS=https://your-frontend-url.pages.dev
+
+# Optional - CORS
+CORS_ALLOWED_ORIGINS=https://your-frontend.pages.dev
+
+# Optional - Email (see docs/EMAIL_SETUP_CUSTOM_DOMAIN.md)
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=587
+SMTP_USERNAME=resend
+SMTP_PASSWORD=your-api-key
+SMTP_FROM_EMAIL=no-reply@yourdomain.com
+SMTP_FROM_NAME=BookLib
 ```
 
-Generate secure secret:
-```bash
-openssl rand -base64 32
-```
+### 3. Add Persistent Volume
 
----
+1. Railway dashboard → Your Project → **Settings**
+2. Scroll to **Volumes**
+3. Click **Add Volume**
+4. Mount path: `/data`
+5. Set `DATABASE_PATH=/data/booklib.db` in Variables
 
-## Alternative Platforms
+### 4. Deploy
 
-| Platform | Cost | Always-On | Setup | Guide |
-|----------|------|-----------|-------|-------|
-| **Railway** | **$0** ⭐ | ✅ | Easy | [RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md) |
-| **Fly.io** | ~$3/mo | ✅ | Medium | Docs below |
-| **Render** | $0* | ❌ Cold starts | Easy | Dashboard deploy |
-| **Koyeb** | $0 | ✅ | Easy | Dashboard deploy |
-
-*Render free tier spins down after 15 min inactivity (50s cold start)
-
----
-
-## Fly.io Deployment (Paid)
-
-**Cost**: ~$2.50-3/month
+Railway auto-deploys on push to `prod` branch:
 
 ```bash
-# Install CLI
-brew install flyctl
-
-# Login
-flyctl auth login
-
-# Create app
-flyctl apps create booklib-backend
-
-# Create volume
-flyctl volumes create booklib_data --size 1 --region sjc
-
-# Set secrets
-flyctl secrets set SESSION_SECRET=$(openssl rand -base64 32)
-flyctl secrets set CORS_ALLOWED_ORIGINS=https://your-frontend.pages.dev
-
-# Deploy
-flyctl deploy
+git push origin prod
 ```
 
-Configuration files included: `fly.toml`, `Dockerfile`
+Your API is live at `https://your-app.up.railway.app`!
 
----
+## Update CORS for Frontend
 
-## Frontend Deployment
-
-Deploy frontend to **Cloudflare Pages** (FREE):
-
-1. Connect GitHub repo to [Cloudflare Pages](https://pages.cloudflare.com/)
-2. Build settings:
-   - Command: `npm run build`
-   - Output: `dist`
-   - Node: `20`
-3. Environment variable:
-   - `VITE_API_URL` = `<your-railway-backend-url>`
-4. Deploy!
-
-Then update backend CORS:
-```bash
-railway variables set CORS_ALLOWED_ORIGINS=https://your-frontend.pages.dev
-```
-
----
-
-## Docker Deployment
+After frontend is deployed, update backend CORS:
 
 ```bash
-docker build -t booklib-backend .
-
-docker run -p 8080:8080 \
-  -e SESSION_SECRET="your-secret" \
-  -e DATABASE_PATH="/data/booklib.db" \
-  -v booklib-data:/data \
-  booklib-backend
+CORS_ALLOWED_ORIGINS=https://your-frontend.pages.dev
 ```
 
----
+## Database Backups
 
-## Health Check
+Railway provides automatic volume snapshots. Manual backup:
 
-Test your deployment:
 ```bash
-curl https://your-backend-url.up.railway.app/health
+railway run bash scripts/backup.sh
 ```
-
-Expected response:
-```json
-{"status":"healthy","service":"booklib-backend"}
-```
-
----
 
 ## Troubleshooting
 
-### Build Fails
-- Check Go version in Dockerfile matches dependencies
-- Verify all environment variables are set
-- View logs: `railway logs`
+**"Database locked"**: Restart the service in Railway dashboard  
+**CORS errors**: Verify `CORS_ALLOWED_ORIGINS` matches your frontend URL exactly  
+**502 errors**: Check Railway logs for startup errors
 
-### Database Not Persisting
-- Ensure persistent volume is mounted at `/data`
-- Check `DATABASE_PATH=/data/booklib.db`
+## Custom Domain (Optional)
 
-### CORS Errors
-- Verify `CORS_ALLOWED_ORIGINS` includes your frontend URL
-- Update: `railway variables set CORS_ALLOWED_ORIGINS=<url>`
+1. Railway → Settings → Domains
+2. Add your domain
+3. Update DNS with Railway's CNAME
 
 ---
 
-## Support
-
-- **Full Railway Guide**: [RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md)
-- **Backend README**: [README.md](./README.md)
-- **Frontend**: [booklib-frontend](https://github.com/brandonalowe/booklib-frontend)
-
----
-
-Made with ❤️ for book lovers 📚
+**You're live!** 🎉 Test: `curl https://your-app.up.railway.app/health`

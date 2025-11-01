@@ -20,7 +20,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/serv
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk --no-cache add ca-certificates sqlite-libs
+RUN apk --no-cache add ca-certificates sqlite-libs sqlite
 
 WORKDIR /app
 
