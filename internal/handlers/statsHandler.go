@@ -14,18 +14,18 @@ type StatsHandler struct {
 }
 
 type StatsResponse struct {
-	TotalBooks     int            `json:"total_books"`
-	BooksRead      int            `json:"books_read"`
-	BooksUnread    int            `json:"books_unread"`
-	ReadPercentage float64        `json:"read_percentage"`
-	BooksLentOut   int            `json:"books_lent_out"`
-	FavoriteGenre  string         `json:"favorite_genre"`
-	BooksThisMonth int            `json:"books_this_month"`
-	BooksThisYear  int            `json:"books_this_year"`
-	TotalLendings  int            `json:"total_lendings"`
-	GenreBreakdown []GenreStat    `json:"genre_breakdown"`
-	MonthlyReading []MonthlyCount `json:"monthly_reading"`
-	TopLentBooks   []TopBook      `json:"top_lent_books"`
+	TotalBooks        int            `json:"total_books"`
+	BooksRead         int            `json:"books_read"`
+	BooksUnread       int            `json:"books_unread"`
+	ReadPercentage    float64        `json:"read_percentage"`
+	BooksLentOut      int            `json:"books_lent_out"`
+	BooksThisMonth    int            `json:"books_this_month"`
+	BooksThisYear     int            `json:"books_this_year"`
+	BooksReadThisYear int            `json:"books_read_this_year"`
+	TotalLendings     int            `json:"total_lendings"`
+	GenreBreakdown    []GenreStat    `json:"genre_breakdown"`
+	MonthlyReading    []MonthlyCount `json:"monthly_reading"`
+	TopLentBooks      []TopBook      `json:"top_lent_books"`
 }
 
 type GenreStat struct {
@@ -96,18 +96,6 @@ func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		stats.TotalLendings = 0
 	}
 
-	// Favorite genre (most common)
-	err = h.DB.QueryRow(`
-		SELECT genre FROM books 
-		WHERE user_id = ? AND genre != '' 
-		GROUP BY genre 
-		ORDER BY COUNT(*) DESC 
-		LIMIT 1
-	`, userID).Scan(&stats.FavoriteGenre)
-	if err != nil {
-		stats.FavoriteGenre = "N/A"
-	}
-
 	// Books added this month
 	now := time.Now()
 	firstDayOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
@@ -128,6 +116,12 @@ func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		stats.BooksThisYear = 0
 	}
+
+	// Books read this year
+	err = h.DB.QueryRow(`
+		SELECT COUNT(*) FROM reading_history 
+		WHERE user_id = ? AND read = 1 AND completed_at >= ?
+	`, userID, firstDayOfYear).Scan(&stats.BooksReadThisYear)
 
 	// Genre breakdown (top 5)
 	rows, err := h.DB.Query(`
