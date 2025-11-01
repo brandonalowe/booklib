@@ -54,14 +54,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Determine if we're in production (HTTPS)
 	isProduction := r.Header.Get("X-Forwarded-Proto") == "https" || r.TLS != nil
-	
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
 		MaxAge:   86400, // 24hrs
 		HttpOnly: true,
-		Secure:   isProduction, // true in production (HTTPS)
+		Secure:   isProduction,          // true in production (HTTPS)
 		SameSite: http.SameSiteNoneMode, // Required for cross-origin
 	})
 
@@ -115,7 +115,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   86400,
 		HttpOnly: true,
-		Secure:   isProduction, // true in production (HTTPS)
+		Secure:   isProduction,          // true in production (HTTPS)
 		SameSite: http.SameSiteNoneMode, // Required for cross-origin
 	})
 
@@ -132,12 +132,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	// Determine if we're in production (HTTPS)
+	isProduction := r.Header.Get("X-Forwarded-Proto") == "https" || r.TLS != nil
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   isProduction,          // Must match the original cookie
+		SameSite: http.SameSiteNoneMode, // Must match the original cookie
 	})
 
 	w.Header().Set("Content-Type", "application/json")
