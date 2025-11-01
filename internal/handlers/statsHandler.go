@@ -120,8 +120,11 @@ func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	// Books read this year
 	err = h.DB.QueryRow(`
 		SELECT COUNT(*) FROM reading_history 
-		WHERE user_id = ? AND read = 1 AND completed_at >= ?
+		WHERE user_id = ? AND completed_at >= ?
 	`, userID, firstDayOfYear).Scan(&stats.BooksReadThisYear)
+	if err != nil {
+		stats.BooksReadThisYear = 0
+	}
 
 	// Genre breakdown (top 5)
 	rows, err := h.DB.Query(`
