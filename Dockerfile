@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git gcc musl-dev sqlite-dev
@@ -22,14 +22,13 @@ FROM alpine:latest
 # Install runtime dependencies
 RUN apk --no-cache add ca-certificates sqlite-libs
 
-WORKDIR /root/
+WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /app/server .
 
-# Copy backup script
-COPY scripts/backup.sh /root/scripts/backup.sh
-RUN chmod +x /root/scripts/backup.sh
+# Copy scripts directory (contains backup.sh)
+COPY --from=builder /app/scripts ./scripts
 
 # Expose port
 EXPOSE 8080

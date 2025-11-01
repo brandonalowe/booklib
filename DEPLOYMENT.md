@@ -1,24 +1,59 @@
-# BookLib Deployment Guide
+# BookLib Backend Deployment Guide
 
-This guide covers deploying BookLib to Fly.io (backend) and Cloudflare Pages (frontend) with automated daily SQLite backups.
+## 🎯 Recommended: Railway.app (FREE)
+
+Railway.app is the recommended hosting platform for BookLib backend because:
+- ✅ **$5 free credit per month** (app uses ~$1.75/month = $0 out of pocket)
+- ✅ **Always-on** (no cold starts)
+- ✅ **Simple setup** (auto-detects Go apps)
+- ✅ **Persistent volumes** included
+- ✅ **Auto-deploy** from GitHub
+
+### Quick Start
+
+See **[RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md)** for step-by-step instructions.
+
+**TL;DR:**
+```bash
+npm install -g @railway/cli
+railway login
+railway init
+railway up
+```
+
+Then add a 1GB volume at `/data` via the dashboard.
+
+---
 
 ## 📋 Prerequisites
 
-1. **Accounts Required:**
-   - GitHub account (for code and CI/CD)
-   - Fly.io account ([fly.io/app/sign-up](https://fly.io/app/sign-up))
-   - Cloudflare account ([dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up))
+## 📋 Prerequisites
 
-2. **Local Tools:**
-   ```bash
-   # Install Fly.io CLI
-   brew install flyctl
-   
-   # Or use the install script
-   curl -L https://fly.io/install.sh | sh
-   ```
+**For Railway.app (Recommended):**
+- GitHub account with `booklib-backend` repo
+- Railway.app account ([sign up free](https://railway.app))
+- Node.js installed (for Railway CLI)
 
-## 🚀 Backend Deployment (Fly.io)
+**For Cloudflare Pages (Frontend):**
+- Cloudflare account ([sign up free](https://dash.cloudflare.com/sign-up))
+
+---
+
+## 🚀 Backend Options
+
+### Option 1: Railway.app (⭐ Recommended - FREE)
+
+**Cost**: $0/month (covered by $5 free credit)  
+**Guide**: [RAILWAY_QUICKSTART.md](./RAILWAY_QUICKSTART.md)
+
+**Pros:**
+- Completely free (with $5 monthly credit)
+- Always-on, no cold starts
+- Simple dashboard and CLI
+- Automatic GitHub deployments
+- Persistent volumes included
+
+### Option 2: Fly.io (Paid)
 
 ### 1. Initialize Fly.io App
 

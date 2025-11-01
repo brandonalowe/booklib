@@ -1,146 +1,143 @@
-# Railway.app Quick Start Guide
+# Deploy BookLib Backend to Railway.app
 
-## 🚀 Deploy BookLib Backend to Railway (5 Steps)
+## 🚀 5-Minute Deployment Guide
 
-### Step 1: Sign Up & Install CLI
+Railway.app offers **$5 free credit per month** which covers this app completely ($0 out of pocket!).
+
+### Prerequisites
+- GitHub account with `booklib-backend` repo
+- Railway.app account ([sign up free](https://railway.app))
+
+---
+
+## Step 1: Install Railway CLI
 
 ```bash
-# Sign up at railway.app (use GitHub for easy access)
-open https://railway.app
-
-# Install Railway CLI
 npm install -g @railway/cli
+```
 
-# Login
+---
+
+## Step 2: Login to Railway
+
+```bash
 railway login
 ```
 
-### Step 2: Create Project
+This opens your browser to authenticate with GitHub.
 
-**Option A: Via CLI (Recommended)**
+---
+
+## Step 3: Deploy from Your Repo
+
+Navigate to your backend folder:
 ```bash
 cd /Users/brandon/personal/booklib-backend
+```
 
-# Initialize Railway project
+Initialize Railway project:
+```bash
 railway init
-
-# Follow prompts:
-# - Project name: booklib-backend
-# - Environment: production
 ```
 
-**Option B: Via Dashboard**
-1. Go to [railway.app/new](https://railway.app/new)
-2. Click **"Deploy from GitHub repo"**
-3. Select `booklib-backend` repository
-4. Railway auto-detects it's a Go app!
+You'll be prompted:
+- **Project name**: `booklib-backend` (or any name you prefer)
+- **Environment**: `production`
 
-### Step 3: Add Persistent Volume
-
-**Via Dashboard (easier):**
-1. Go to your service settings
-2. Click **"Volumes"** tab
-3. Click **"+ New Volume"**
-4. Mount path: `/data`
-5. Size: `1GB` (plenty for SQLite)
-
-**Via CLI:**
-```bash
-railway volume create --mount-path /data --size 1
-```
-
-### Step 4: Set Environment Variables
-
-```bash
-# Generate a secure session secret
-export SESSION_SECRET=$(openssl rand -base64 32)
-
-# Add environment variables
-railway variables set DATABASE_PATH=/data/booklib.db
-railway variables set PORT=8080
-railway variables set SESSION_SECRET="$SESSION_SECRET"
-railway variables set CORS_ALLOWED_ORIGINS=https://booklib-frontend.pages.dev
-
-# Optional: Email reminders
-railway variables set REMINDER_CRON_SCHEDULE="0 9 * * *"
-railway variables set RUN_REMINDERS_ON_STARTUP=false
-```
-
-**Or via Dashboard:**
-1. Go to your service → **Variables** tab
-2. Add each variable:
-   - `DATABASE_PATH` = `/data/booklib.db`
-   - `PORT` = `8080`
-   - `SESSION_SECRET` = (generate with `openssl rand -base64 32`)
-   - `CORS_ALLOWED_ORIGINS` = `https://booklib-frontend.pages.dev`
-
-### Step 5: Deploy!
-
-```bash
-# Deploy from CLI
-railway up
-
-# Or just push to GitHub (auto-deploys)
-git push origin main
-```
-
-That's it! 🎉
+Railway will create a new project and link it to your current directory.
 
 ---
 
-## 📝 Your Backend URL
+## Step 4: Add Persistent Volume
 
-After deployment, Railway will give you a URL like:
-```
-https://booklib-backend.up.railway.app
-```
-
-**Find it:**
-- Dashboard: Service → **Settings** → **Domains**
-- CLI: `railway domain`
-
-**Save this URL** - you'll need it for the frontend!
-
----
-
-## 🔧 Useful Commands
+**Option A: Via Dashboard (Recommended)**
 
 ```bash
-# View logs in real-time
-railway logs
-
-# Check deployment status
-railway status
-
-# Open dashboard
+# Open the Railway dashboard
 railway open
-
-# Shell access (for debugging)
-railway shell
-
-# List environment variables
-railway variables
-
-# Redeploy
-railway up
-
-# View service info
-railway info
 ```
+
+Then in the dashboard:
+1. Click on your service
+2. Go to **Settings** tab
+3. Scroll to **Volumes** section  
+4. Click **+ New Volume**
+5. Set mount path: `/data`
+6. Set size: `1GB`
+7. Click **Add**
+
+**Option B: Via CLI**
+
+Railway doesn't support volume creation via CLI yet, so use the dashboard method above.
 
 ---
 
-## ✅ Verify Deployment
+## Step 5: Set Environment Variables
 
-### 1. Check Health
 ```bash
-# Replace with your actual URL
-curl https://booklib-backend.up.railway.app/health
+# Generate a secure session secret (used for both sessions and JWT tokens)
+SESSION_SECRET=$(openssl rand -base64 32)
+
+# Set all required variables
+railway variables set \
+  DATABASE_PATH=/data/booklib.db \
+  PORT=8080 \
+  SESSION_SECRET="$SESSION_SECRET" \
+  CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
 ```
 
-Should return: `{"status":"healthy","service":"booklib-backend"}`
+**Note**: 
+- `SESSION_SECRET` is used for JWT token signing and session management
+- We'll update `CORS_ALLOWED_ORIGINS` after deploying the frontend
+- You can optionally set `JWT_SECRET` separately if you want different keys for JWT vs sessions
 
-### 2. Check Logs
+---
+
+## Step 6: Deploy!
+
+```bash
+railway up
+```
+
+Railway will:
+1. Upload your code
+2. Detect the Dockerfile
+3. Build the Go application  
+4. Deploy it
+5. Assign a public URL
+
+This takes about 2-3 minutes.
+
+---
+
+## Step 7: Get Your Backend URL
+
+```bash
+railway domain
+```
+
+Your backend will be at something like:
+```
+https://booklib-backend-production-xxxx.up.railway.app
+```
+
+**Save this URL!** You'll need it for the frontend.
+
+---
+
+## Step 8: Verify Deployment
+
+Test the health check:
+```bash
+curl https://your-railway-url.up.railway.app/health
+```
+
+Expected response:
+```json
+{"status":"healthy","service":"booklib-backend"}
+```
+
+View logs:
 ```bash
 railway logs
 ```
@@ -152,16 +149,130 @@ Database path: /data/booklib.db
 Allowed CORS origins: [...]
 ```
 
-### 3. Test Database
+---
+
+## ✅ Backend Deployed!
+
+Your backend is now live at your Railway URL! 🎉
+
+**Cost**: $0/month (covered by $5 free credit - app uses ~$1.75/month)
+
+---
+
+## 🎨 Next Steps: Deploy Frontend
+
+### 1. Update CORS
+
+Once you deploy your frontend to Cloudflare Pages, update CORS:
+
 ```bash
+railway variables set CORS_ALLOWED_ORIGINS=https://your-frontend-url.pages.dev
+```
+
+### 2. Deploy Frontend to Cloudflare Pages
+
+See `/Users/brandon/personal/booklib-frontend/DEPLOYMENT.md` for frontend deployment instructions.
+
+You'll need to:
+1. Connect your GitHub repo to Cloudflare Pages
+2. Set build command: `npm run build`
+3. Set output directory: `dist`
+4. Add environment variable: `VITE_API_URL=<your-railway-backend-url>`
+
+---
+
+## 🔧 Useful Commands
+
+```bash
+# View real-time logs
+railway logs
+
+# Check status
+railway status
+
+# Open dashboard
+railway open
+
+# Shell access (debugging)
 railway shell
-ls -lh /data
-# Should see booklib.db after first request
+
+# List variables
+railway variables
+
+# Redeploy
+railway up
 ```
 
 ---
 
-## 🎨 Next: Deploy Frontend to Cloudflare Pages
+## 💾 Backups
+
+Railway provides volume snapshots:
+
+1. Open dashboard: `railway open`
+2. Go to your service → **Volumes**
+3. Click on your volume
+4. Click **"Create Snapshot"**
+
+Snapshots are kept for 7 days on the free plan.
+
+---
+
+## 🆘 Troubleshooting
+
+### Build Failed
+```bash
+# Check logs
+railway logs
+
+# Verify Dockerfile exists
+ls -la Dockerfile
+```
+
+### Database Not Found
+```bash
+# Check volume is mounted
+railway shell
+df -h | grep /data
+ls -lh /data
+```
+
+### CORS Errors
+```bash
+# Verify CORS setting
+railway variables | grep CORS
+
+# Update with frontend URL
+railway variables set CORS_ALLOWED_ORIGINS=https://your-frontend.pages.dev
+```
+
+### Service Won't Start
+```bash
+# View detailed logs
+railway logs --tail 100
+
+# Check all environment variables
+railway variables
+```
+
+---
+
+## 📊 Monitor Usage
+
+View your credit usage:
+1. `railway open`
+2. Click your profile → **Usage**
+3. See how much of your $5 credit you're using
+
+Expected: ~$1.75/month (well within free tier!)
+
+---
+
+## 🎉 Success!
+
+Your backend is deployed and running on Railway for free! 
+
+Next: Deploy your frontend to complete the full stack deployment.
 
 ### Update Frontend Configuration
 

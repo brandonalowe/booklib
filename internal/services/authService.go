@@ -2,13 +2,28 @@ package services
 
 import (
 	"errors"
+	"log"
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var jwtSecret = []byte("super-secret-key")
+var jwtSecret []byte
+
+func init() {
+	// Load JWT secret from environment variable
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// Fall back to SESSION_SECRET if JWT_SECRET not set
+		secret = os.Getenv("SESSION_SECRET")
+	}
+	if secret == "" {
+		log.Fatal("JWT_SECRET or SESSION_SECRET environment variable must be set")
+	}
+	jwtSecret = []byte(secret)
+}
 
 type Claims struct {
 	UserID   int    `json:"user_id"`
