@@ -1,0 +1,41 @@
+# fly.toml app configuration file generated for booklib-backend
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "booklib-backend"
+primary_region = "sjc"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+[mounts]
+  source = "booklib_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[env]
+  DATABASE_PATH = "/data/booklib.db"
+  PORT = "8080"

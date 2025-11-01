@@ -26,6 +26,7 @@ go.work.sum
 
 # env file
 .env
+.env.local
 
 # Editor/IDE
 .idea/
@@ -37,3 +38,10 @@ go.work.sum
 # Databases
 *.db
 *.sqlite3
+
+# Backups
+backup/
+*.backup
+
+# Fly.io
+.fly/

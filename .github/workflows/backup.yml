@@ -1,0 +1,28 @@
+name: Scheduled Database Backup
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  backup:
+    name: Daily Database Backup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - name: Run Backup Script
+        run: |
+          flyctl ssh console -C "/root/scripts/backup.sh" -a booklib-backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      
+      - name: Verify Backup
+        run: |
+          flyctl ssh console -C "ls -lh /backup" -a booklib-backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

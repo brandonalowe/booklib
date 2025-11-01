@@ -1,6 +1,9 @@
 package api
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+)
 
 func InternalServerErrorResponse(w http.ResponseWriter, err error) {
 	writeJson(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -20,4 +23,10 @@ func BadRequestResponse(w http.ResponseWriter, err string) {
 
 func CreatedResponse(w http.ResponseWriter, v any) {
 	writeJson(w, http.StatusCreated, v)
+}
+
+func writeJson(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
 }

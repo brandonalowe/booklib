@@ -1,123 +1,198 @@
 package main
 
 import (
-	"booklib/internal/api"
-	"booklib/internal/db"
-	"context"
-	"embed"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
+	"booklib/internal/db"
+	"booklib/internal/handlers"
+	"booklib/internal/middleware"
+	"booklib/internal/services"
+
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/robfig/cron/v3"
 )
 
-//go:embed web/*
-var webFiles embed.FS
+// splitAndTrim splits a string by delimiter and trims whitespace
+func splitAndTrim(s, delim string) []string {
+	parts := strings.Split(s, delim)
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
 
 func main() {
-	db.Init("books.db")
-	//	db.Init("isbn_cache.db")
+	// Load .env file if it exists (optional, won't fail if missing)
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables or defaults")
+	}
+
+	// Initialize database
+	dbPath := os.Getenv("DATABASE_PATH")
+	if dbPath == "" {
+		dbPath = "./database/books.db"
+	}
+	if err := db.Init(dbPath); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.Close()
+
+	authHandler := &handlers.AuthHandler{DB: db.GetDB()}
+	bookHandler := &handlers.BookHandler{DB: db.GetDB()}
+	adminHandler := &handlers.AdminHandler{DB: db.GetDB()}
+	lendingHandler := &handlers.LendingHandler{DB: db.GetDB()}
+	statsHandler := &handlers.StatsHandler{DB: db.GetDB()}
+	readingHistoryHandler := &handlers.ReadingHistoryHandler{DB: db.GetDB()}
+
+	// Initialize email and reminder services
+	emailService := services.NewEmailService()
+	reminderService := services.NewReminderService(db.GetDB(), emailService)
+
+	// Setup cron scheduler for daily reminders
+	c := cron.New()
+
+	// Run daily at 9 AM (adjust timezone as needed)
+	cronSchedule := os.Getenv("REMINDER_CRON_SCHEDULE")
+	if cronSchedule == "" {
+		cronSchedule = "0 9 * * *" // Default: 9 AM daily
+	}
+
+	_, err := c.AddFunc(cronSchedule, func() {
+		log.Println("Running scheduled reminder check...")
+		reminderService.CheckAndSendReminders()
+	})
+
+	if err != nil {
+		log.Printf("Warning: Failed to schedule reminder cron job: %v", err)
+	} else {
+		c.Start()
+		log.Printf("Reminder cron job scheduled: %s", cronSchedule)
+
+		// Run immediately on startup if enabled
+		if os.Getenv("RUN_REMINDERS_ON_STARTUP") == "true" {
+			log.Println("Running initial reminder check on startup...")
+			go reminderService.CheckAndSendReminders()
+		}
+	}
+
+	defer c.Stop()
 
 	r := chi.NewRouter()
 	// Add common middleware including a 15s request timeout
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(15 * time.Second))
-	api.RegisterRoutes(r)
+	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.Timeout(60 * time.Second))
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	// Configure CORS based on environment
+	allowedOrigins := []string{"http://localhost:5173"}
+	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
+		// Parse comma-separated origins
+		allowedOrigins = append(allowedOrigins, splitAndTrim(corsOrigins, ",")...)
 	}
 
-	// Serve static assets under /static/.
-	// Prefer local ./web directory for development so edits are visible immediately.
-	var staticHandler http.Handler
-	if fi, err := os.Stat("web"); err == nil && fi.IsDir() {
-		pwd, _ := os.Getwd()
-		log.Printf("serving static assets from local %s", filepath.Join(pwd, "web"))
-		staticHandler = http.StripPrefix("/static/", http.FileServer(http.Dir("web")))
-	} else {
-		sub, err := fs.Sub(webFiles, "web")
-		if err != nil {
-			log.Fatalf("failed to create sub fs: %v", err)
-		}
-		staticFS := http.FS(sub)
-		staticHandler = http.StripPrefix("/static/", http.FileServer(staticFS))
-	}
-	r.Handle("/static/*", staticHandler)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
-	// Serve index.html at root (prefer local file if present)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		if fi, err := os.Stat("web/index.html"); err == nil && !fi.IsDir() {
-			http.ServeFile(w, r, "web/index.html")
-			return
-		}
-		data, err := webFiles.ReadFile("web/index.html")
-		if err != nil {
-			http.Error(w, "index not found", http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(data)
+	// Health check endpoint
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"healthy","service":"booklib-backend"}`))
 	})
 
-	// Simple NotFound that returns index.html for SPA paths (but not API paths)
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/books") || strings.HasPrefix(r.URL.Path, "/api") ||
-			strings.HasPrefix(r.URL.Path, "/static/") {
-			http.NotFound(w, r)
-			return
-		}
-		if fi, err := os.Stat("web/index.html"); err == nil && !fi.IsDir() {
-			http.ServeFile(w, r, "web/index.html")
-			return
-		}
-		data, err := webFiles.ReadFile("web/index.html")
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(data)
+	// Public auth routes
+	r.Route("/api/auth", func(r chi.Router) {
+		r.Post("/register", authHandler.Register)
+		r.Post("/login", authHandler.Login)
+		r.Post("/logout", authHandler.Logout)
+
+		// Protected auth routes
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware)
+			r.Get("/me", authHandler.Me)
+		})
 	})
 
-	srv := &http.Server{
-		Addr:         ":8080",
-		Handler:      r,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 20 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Protected book routes
+	r.Route("/api/books", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+
+		r.Get("/", bookHandler.List)
+		r.Post("/", bookHandler.Create)
+		r.Get("/search", bookHandler.Search)
+		r.Get("/search/{isbn}", bookHandler.SearchByISBN)
+		r.Get("/{id}", bookHandler.Get)
+		r.Put("/{id}", bookHandler.Update)
+		r.Delete("/{id}", bookHandler.Delete)
+	})
+
+	// Protected lending routes
+	r.Route("/api/lending", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+
+		r.Get("/", lendingHandler.List)
+		r.Post("/", lendingHandler.Create)
+		r.Delete("/{id}", lendingHandler.Return)
+		r.Get("/history", lendingHandler.GetHistory)
+		r.Get("/history/{bookId}", lendingHandler.GetHistory)
+	})
+
+	// Protected stats routes
+	r.Route("/api/stats", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+
+		r.Get("/", statsHandler.GetStats)
+	})
+
+	// Protected reading history routes
+	r.Route("/api/reading-history", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+
+		r.Post("/start", readingHistoryHandler.StartReading)
+		r.Put("/{id}/finish", readingHistoryHandler.FinishReading)
+		r.Get("/book/{bookId}", readingHistoryHandler.GetBookReadingHistory)
+		r.Get("/book/{bookId}/active", readingHistoryHandler.GetActiveReadingSession)
+	})
+
+	// Admin routes
+	r.Route("/api/admin", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware)
+		r.Use(middleware.AdminMiddleware)
+
+		r.Get("/stats", adminHandler.GetStats)
+		r.Get("/users", adminHandler.ListUsers)
+		r.Get("/users/{id}", adminHandler.GetUser)
+		r.Delete("/users/{id}", adminHandler.DeleteUser)
+		r.Put("/users/{id}/role", adminHandler.UpdateUserRole)
+	})
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	// Graceful shutdown on SIGINT/SIGTERM
-	go func() {
-		log.Println("Listening on :8080")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
-		}
-	}()
+	log.Printf("Server starting on :%s", port)
+	log.Printf("Database path: %s", dbPath)
+	log.Printf("Allowed CORS origins: %v", allowedOrigins)
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	log.Println("Shutting down server...")
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
-	}
-	log.Println("Server stopped")
+	http.ListenAndServe(":"+port, r)
 }
